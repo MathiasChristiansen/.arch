@@ -53,9 +53,12 @@ interface DAGEditor {
 
 ## Dependencies
 
-- **Blocks**: List RFCs that depend on this one
-- **Blocked By**: List RFCs this depends on
-- **Related**: List related RFCs
+**Critical for parallelization planning - always fill this out accurately!**
+
+- **Blocks**: RFC-XXX, RFC-YYY (RFCs that cannot start until this one completes)
+- **Blocked By**: RFC-XXX, RFC-YYY (RFCs that must complete before this can start)
+- **Related**: RFC-XXX (related but not blocking)
+- **Parallelization Wave**: Wave N (set by architect: Wave 1 = no dependencies, Wave 2+ = depends on earlier waves)
 
 ## Estimated Effort
 
