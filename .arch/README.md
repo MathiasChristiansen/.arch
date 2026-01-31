@@ -1,148 +1,254 @@
-# Repo Architectural Workflow System
+# .arch - Spec-Driven Development Framework
 
-This directory contains the architectural workflow system for the repository - a spec-driven development process where architect agents define features and implementer agents build them.
+> **Start Here**: This directory contains the complete architectural workflow system for coordinating parallel agent work.
+
+## Quick Start - What Are You Trying to Do?
+
+| Goal | Start Here |
+|------|------------|
+| **Understand this framework** | Read this file, then [WORKFLOW-PARALLELIZATION.md](WORKFLOW-PARALLELIZATION.md) |
+| **Implement an RFC** | Read [sprints/current.md](sprints/current.md) → then sprint's `CONTEXT.md` → then your RFC |
+| **Review an RFC** | Read [rfcs/template.md](rfcs/template.md) → then pending RFC → then relevant [ADRs](decisions/) |
+| **Plan a sprint** | Read [sprints/SPRINT-PLANNING-GUIDE.md](sprints/SPRINT-PLANNING-GUIDE.md) |
+| **Create new RFC** | Copy [rfcs/template.md](rfcs/template.md) to `rfcs/pending/` |
+
+---
 
 ## Directory Structure
 
 ```
 .arch/
-├── README.md                        # This file
-├── WORKFLOW-PARALLELIZATION.md      # Guide to parallelizing RFC implementation
-├── rfcs/                            # Feature requests (RFCs = Requests For Comments)
-│   ├── pending/                     # Awaiting architect review
-│   ├── approved/                    # Ready for implementation
-│   ├── in-progress/                 # Currently being implemented
-│   ├── implemented/                 # Completed
-│   ├── rejected/                    # Not moving forward
-│   └── template.md                  # RFC template
-├── sprints/                         # Sprint planning
-│   ├── current.md                   # Current sprint (symlink)
-│   ├── sprint-1.md                  # Past sprints
-│   └── sprint-2.md                  # Current/future sprints
-├── agents/                          # Agent registry
-│   ├── architects/                  # Architect agents (review, approve)
-│   └── implementers/                # Implementer agents (build)
-└── decisions/                       # Architectural Decision Records (ADRs)
-    ├── 001-driver-pattern.md        # Why we use driver pattern
-    └── template.md                  # ADR template
+├── README.md                           # ← YOU ARE HERE
+├── WORKFLOW-PARALLELIZATION.md         # Guide to wave-based parallel execution
+│
+├── rfcs/                               # Feature Requests (RFCs)
+│   ├── template.md                     # RFC template - READ FIRST
+│   ├── pending/                        # Awaiting architect review
+│   ├── approved/                       # Ready for implementation
+│   ├── in-progress/                    # Currently being implemented
+│   ├── implemented/                    # Completed
+│   └── rejected/                       # Not moving forward
+│
+├── sprints/                            # Sprint Planning & Execution
+│   ├── current.md                      # Pointer to active sprint
+│   ├── template.md                     # Sprint file template
+│   ├── SPRINT-PLANNING-GUIDE.md        # How to plan sprints
+│   ├── CONTEXT-template.md             # Context file template (CRITICAL)
+│   ├── DEPENDENCY-GRAPH-template.md    # Dependency graph template
+│   ├── WAVE-STATUS-template.md         # Execution tracking template
+│   ├── example-sprint/                 # Complete working example
+│   │   ├── CONTEXT.md                  # Example context (Go+PostgreSQL)
+│   │   ├── DEPENDENCY-GRAPH.md         # Example dependencies
+│   │   └── WAVE-STATUS.md              # Example tracking
+│   └── sprint-N/                       # Actual sprint directories
+│       ├── CONTEXT.md                  # Project context for agents
+│       ├── DEPENDENCY-GRAPH.md         # RFC dependencies
+│       └── WAVE-STATUS.md              # Real-time progress
+│
+├── decisions/                          # Architectural Decision Records (ADRs)
+│   ├── template.md                     # ADR template
+│   └── NNN-decision-name.md            # Individual decisions
+│
+├── agents/                             # Agent Registry
+│   ├── architects/                     # Architect agents
+│   │   └── template.md
+│   └── implementers/                   # Implementer agents
+│       └── template.md
+│
+├── issues/                             # Issue Tracking
+│   ├── README.md
+│   ├── template.md
+│   ├── open/
+│   ├── resolved/
+│   └── deferred/
+│
+└── guides/                             # Guides & Documentation
+    └── SKILLS-AND-HOOKS-GUIDE.md       # Creating skills and hooks
 ```
 
-## Custom Slash Commands
+---
 
-Helper commands are available in `.claude/commands/`:
+## Key Concepts
 
-- `/claim-rfc <number>` - Claim an approved RFC
-- `/complete-rfc <number>` - Mark RFC as implemented
-- `/review-rfc <number>` - Review a pending RFC (architects)
-- `/sprint-status` - View current sprint progress
+### 1. RFCs (Request For Comments)
 
-See individual command files for detailed usage.
+RFCs are feature specifications that flow through these states:
 
-## Workflow
-
-### For Implementer Agents
-
-1. **Check current sprint**: `cat .arch/sprints/current.md`
-2. **Browse approved RFCs**: `ls .arch/rfcs/approved/`
-3. **Claim an RFC**:
-   ```bash
-   mv .arch/rfcs/approved/XXX-feature.md .arch/rfcs/in-progress/
-   # Update RFC: Status=in-progress, Assigned To=your-agent-id
-   # Update your agent file with current assignment
-   ```
-4. **Implement** following the RFC specification
-5. **Complete**:
-   ```bash
-   mv .arch/rfcs/in-progress/XXX-feature.md .arch/rfcs/implemented/
-   # Update your agent file: Current Assignment=None
-   ```
-
-### For Architect Agents
-
-1. **Review pending RFCs**: `ls .arch/rfcs/pending/`
-2. **Make decision**:
-   - **Approve**: Move to `approved/`, add review notes, assign to sprint
-   - **Reject**: Move to `rejected/`, add reasoning
-3. **Document decisions**: Create ADR in `.arch/decisions/`
-4. **Update sprint plan**: Add approved RFCs to current sprint
-
-### Creating New RFCs
-
-```bash
-cp .arch/rfcs/template.md .arch/rfcs/pending/XXX-feature-name.md
-# Fill out all sections
-# Wait for architect review
 ```
+pending → approved → in-progress → implemented
+            ↓
+         rejected
+```
+
+**Key fields in each RFC**:
+- **Status**: Current state
+- **Blocked By**: RFCs that must complete first
+- **Blocks**: RFCs waiting for this one
+- **Parallelization Wave**: Which wave this RFC is in
+
+### 2. Sprints & Waves
+
+Sprints organize work into **waves** for parallel execution:
+
+```
+Wave 1 (no dependencies):     RFC-001, RFC-002  → run in parallel
+Wave 2 (depends on Wave 1):   RFC-003, RFC-004  → run in parallel after Wave 1
+Wave 3 (depends on Wave 2):   RFC-005           → runs after Wave 2
+```
+
+**Time savings**: 32% typical improvement vs sequential execution.
+
+### 3. ADRs (Architectural Decision Records)
+
+**CRITICAL**: ADRs in `decisions/` contain **mandatory architectural rules**.
+
+All agents MUST:
+1. Read relevant ADRs before starting work
+2. Follow ADR requirements strictly
+3. Reference ADRs in reviews and implementations
+4. Create new ADRs for significant decisions
+
+**Violating ADRs will result in rejected implementations!**
+
+### 4. Context Files
+
+Each sprint has three critical files in `sprints/sprint-N/`:
+
+| File | Purpose | Who Updates |
+|------|---------|-------------|
+| `CONTEXT.md` | Project context (schema, patterns, examples) | Architects |
+| `DEPENDENCY-GRAPH.md` | RFC dependencies visualization | Architects |
+| `WAVE-STATUS.md` | Real-time progress tracking | Implementers |
+
+**Why they matter**: Parallel agents run in separate sessions with NO conversation history. Context files are their ONLY source of project knowledge.
+
+---
+
+## Workflow for Implementers
+
+### Before You Start
+
+1. **Read sprint context**: `sprints/sprint-N/CONTEXT.md`
+2. **Read ALL relevant ADRs**: `decisions/*.md` - MANDATORY!
+3. **Check dependencies**: `sprints/sprint-N/DEPENDENCY-GRAPH.md`
+4. **Read your RFC thoroughly**: `rfcs/approved/XXX-name.md`
+
+### Implementation Steps
+
+1. **Claim RFC**: Use `/claim-rfc XXX`
+2. **Update WAVE-STATUS.md**: Mark as in-progress
+3. **Implement**: Follow RFC spec and CONTEXT.md patterns
+4. **Update progress**: Every 30-60 minutes in WAVE-STATUS.md
+5. **Test**: Ensure all tests pass
+6. **Complete**: Use `/complete-rfc XXX`
+
+### Common Mistakes to Avoid
+
+- ❌ Starting without reading CONTEXT.md
+- ❌ Ignoring ADRs
+- ❌ Inventing new patterns
+- ❌ Not updating progress
+- ❌ Working outside your RFC's scope
+
+---
+
+## Workflow for Architects
+
+### RFC Review
+
+1. **Read pending RFC**: `rfcs/pending/XXX-name.md`
+2. **Cross-reference ADRs**: Check `decisions/` for relevant rules
+3. **Evaluate**: Problem, solution, dependencies, effort
+4. **Decide**: Approve, reject, or request changes
+5. **Use**: `/review-rfc XXX`
+
+### Sprint Planning
+
+1. **Gather approved RFCs**: `rfcs/approved/`
+2. **Analyze dependencies**: Build dependency graph
+3. **Assign waves**: Using topological sort
+4. **Generate context**: Comprehensive CONTEXT.md
+5. **Use**: `/init-sprint N`
+
+### Creating ADRs
+
+When making significant architectural decisions:
+
+1. Copy `decisions/template.md` to `decisions/NNN-decision-name.md`
+2. Document: Context, Decision, Rationale, Consequences
+3. Reference in CONTEXT.md for future agents
+
+---
+
+## Available Commands
+
+| Command | Purpose | Who Uses |
+|---------|---------|----------|
+| `/claim-rfc <N>` | Claim an RFC | Implementers |
+| `/complete-rfc <N>` | Mark RFC done | Implementers |
+| `/review-rfc <N>` | Review pending RFC | Architects |
+| `/init-sprint <N>` | Initialize sprint | Architects |
+| `/start-sprint-wave <S> <W>` | Launch wave | Coordinators |
+| `/sprint-status` | View progress | Anyone |
+| `/update-sprint-context <N>` | Update context | Architects |
+
+---
 
 ## File Locking
 
-Files act as "locks" to prevent duplicate work:
-- RFC in `approved/` = available to claim
-- RFC in `in-progress/` = someone is working on it (see "Assigned To" field)
-- RFC in `implemented/` = completed
-- Agent file shows current assignment
+The file system acts as a coordination mechanism:
 
-## Sprint System
+| Location | Meaning |
+|----------|---------|
+| `rfcs/approved/` | Available to claim |
+| `rfcs/in-progress/` | Someone working (check "Assigned To") |
+| `rfcs/implemented/` | Completed |
 
-- **Duration**: 1-2 weeks per sprint
-- **Goal**: Time-boxed focus on specific objectives
-- **Retrospective**: After sprint ends, document what worked/didn't
-- **Rollover**: Incomplete work moves to next sprint
+---
 
-## Parallelizing Work with Task Tools
+## Templates & Examples
 
-**📖 See [WORKFLOW-PARALLELIZATION.md](WORKFLOW-PARALLELIZATION.md) for the complete guide.**
+### For RFCs
+- **Template**: [rfcs/template.md](rfcs/template.md)
 
-When working with multiple RFCs or conducting reviews, use Claude Code's Task tool to run agents concurrently:
+### For Sprints
+- **Sprint template**: [sprints/template.md](sprints/template.md)
+- **Context template**: [sprints/CONTEXT-template.md](sprints/CONTEXT-template.md)
+- **Complete example**: [sprints/example-sprint/](sprints/example-sprint/)
 
-### When to Parallelize
+### For ADRs
+- **Template**: [decisions/template.md](decisions/template.md)
 
-- **Multiple RFC Reviews**: Architect reviewing 3+ pending RFCs
-- **Independent Implementations**: Multiple approved RFCs with no dependencies
-- **Cross-cutting Analysis**: Analyzing codebase while implementing feature
-- **Verification Tasks**: Running tests while reviewing documentation
+---
 
-### How to Use Task Tools
+## Best Practices
 
-Launch multiple agents in a **single message** with multiple Task tool calls:
+### For All Agents
 
-```
-Use Task tool to launch:
-1. architect-backend agent to review RFC-005 and RFC-007
-2. implementer-frontend agent to implement RFC-003
-3. implementer-testing agent to add tests for RFC-002
-```
+1. **Always read ADRs** - They contain mandatory rules
+2. **Follow established patterns** - Don't invent new approaches
+3. **Update progress regularly** - Keep WAVE-STATUS.md current
+4. **Document blockers immediately** - Don't struggle silently
 
-Each agent operates in its own context window and can work independently.
+### For Architects
 
-### Example Workflow
+1. **Make CONTEXT.md comprehensive** - Include code examples
+2. **Document all decisions as ADRs** - Future agents need this
+3. **Calculate parallel time savings** - Show the value
+4. **Update context between waves** - Architecture evolves
 
-**Scenario**: You have 5 approved RFCs ready for implementation
+### For Implementers
 
-Instead of sequential work:
-```
-❌ Implement RFC-001 → RFC-002 → RFC-003 → RFC-004 → RFC-005
-```
+1. **Read context BEFORE claiming** - Understand patterns first
+2. **Check ADRs** - Violations will be rejected
+3. **Stay in your RFC's scope** - Don't touch other agents' work
+4. **Test thoroughly** - All tests must pass
 
-Use parallel agents:
-```
-✅ Launch 3 implementer agents simultaneously:
-   - Agent 1: RFC-001, RFC-004
-   - Agent 2: RFC-002, RFC-005
-   - Agent 3: RFC-003
-```
+---
 
-**Important**: Only parallelize RFCs that don't have dependencies on each other (check "Blocked By" field).
+## Need More Help?
 
-## Benefits
-
-1. **No Conflicts**: File-based coordination prevents duplicate work
-2. **Clear Ownership**: Every RFC has an assigned agent
-3. **Audit Trail**: Full history of decisions
-4. **Scalability**: Unlimited parallel agents via Task tool
-5. **Quality Control**: Architect review before implementation
-6. **Progress Tracking**: Easy to see what's in progress, done, blocked
-
-## Examples
-
-See existing RFCs, sprints, and ADRs in their respective directories for examples.
+- **Parallelization details**: [WORKFLOW-PARALLELIZATION.md](WORKFLOW-PARALLELIZATION.md)
+- **Sprint planning**: [sprints/SPRINT-PLANNING-GUIDE.md](sprints/SPRINT-PLANNING-GUIDE.md)
+- **Skills & Hooks**: [guides/SKILLS-AND-HOOKS-GUIDE.md](guides/SKILLS-AND-HOOKS-GUIDE.md)
+- **Example sprint**: [sprints/example-sprint/](sprints/example-sprint/)
